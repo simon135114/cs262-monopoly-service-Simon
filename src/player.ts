@@ -1,17 +1,10 @@
-/**
- * Type definitions for the Monopoly service
- *
- * @author: kvlinden
- * @date: Fall, 2025
- */
-
 export interface Player {
     id: number;
-    email: string;
+    emailaddress: string;   // ✅ 和数据库字段一致
     name: string;
 }
 
 export interface PlayerInput {
-    email: string;
+    emailaddress: string;   // ✅ 和数据库字段一致
     name: string;
 }
