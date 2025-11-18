@@ -67,6 +67,10 @@ router.get('/players/:id', readPlayer);
 router.put('/players/:id', updatePlayer);
 router.post('/players', createPlayer);
 router.delete('/players/:id', deletePlayer);
+router.get('/games', readGames);
+router.get('/games/:id', readGamePlayers);
+router.delete('/games/:id', deleteGame);
+
 
 // For testing only; vulnerable to SQL injection!
 // router.get('/bad/players/:id', readPlayerBad);
@@ -218,4 +222,34 @@ function deletePlayer(request: Request, response: Response, next: NextFunction):
         .catch((error: Error): void => {
             next(error);
         });
+}
+
+// GET /games - list all games
+function readGames(_req: Request, res: Response, next: NextFunction): void {
+    db.manyOrNone('SELECT * FROM Game ORDER BY time DESC')
+        .then((data) => res.send(data))
+        .catch((err: Error) => next(err));
+}
+
+// GET /games/:id - list players & scores for a game
+function readGamePlayers(req: Request, res: Response, next: NextFunction): void {
+    const gameId = req.params.id;
+    db.manyOrNone(
+        `SELECT P.name, PG.score
+         FROM PlayerGame PG
+         JOIN Player P ON PG.playerID = P.ID
+         WHERE PG.gameID = $1`, [gameId])
+        .then((data) => returnDataOr404(res, data))
+        .catch((err: Error) => next(err));
+}
+
+// DELETE /games/:id - delete a game
+function deleteGame(req: Request, res: Response, next: NextFunction): void {
+    const gameId = req.params.id;
+    db.tx((t) => {
+        return t.none('DELETE FROM PlayerGame WHERE gameID = $1', [gameId])
+            .then(() => t.oneOrNone('DELETE FROM Game WHERE ID = $1 RETURNING ID', [gameId]));
+    })
+    .then((data) => returnDataOr404(res, data))
+    .catch((err: Error) => next(err));
 }
