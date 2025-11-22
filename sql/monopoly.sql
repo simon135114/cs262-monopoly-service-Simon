@@ -15,12 +15,12 @@ DROP TABLE IF EXISTS Player CASCADE;
 
 -- Create tables
 CREATE TABLE Game (
-    ID integer PRIMARY KEY,
+    ID SERIAL PRIMARY KEY,
     time timestamp
 );
 
 CREATE TABLE Player (
-    ID integer PRIMARY KEY,
+    ID SERIAL PRIMARY KEY,
     emailAddress varchar(50) NOT NULL,
     name varchar(50)
 );
@@ -44,17 +44,15 @@ CREATE TABLE GameState (
 );
 
 -- Insert sample data
-INSERT INTO Game(ID, time) VALUES
-(1, '2006-06-27 08:00:00'),
-(2, '2006-06-28 13:20:00'),
-(3, '2006-06-29 18:41:00')
-ON CONFLICT DO NOTHING;
+INSERT INTO Game(time) VALUES
+('2006-06-27 08:00:00'),
+('2006-06-28 13:20:00'),
+('2006-06-29 18:41:00');
 
-INSERT INTO Player(ID, emailAddress, name) VALUES
-(1, 'me@calvin.edu', 'Me'),
-(2, 'king@gmail.edu', 'The King'),
-(3, 'dog@gmail.edu', 'Dogbreath')
-ON CONFLICT DO NOTHING;
+INSERT INTO Player(emailAddress, name) VALUES
+('me@calvin.edu', 'Me'),
+('king@gmail.edu', 'The King'),
+('dog@gmail.edu', 'Dogbreath');
 
 INSERT INTO PlayerGame(gameID, playerID, score) VALUES
 (1, 1, 0.00),
@@ -64,14 +62,12 @@ INSERT INTO PlayerGame(gameID, playerID, score) VALUES
 (2, 2, 0.00),
 (2, 3, 500.00),
 (3, 2, 0.00),
-(3, 3, 5500.00)
-ON CONFLICT DO NOTHING;
+(3, 3, 5500.00);
 
 INSERT INTO GameState(gameID, playerID, cash, properties, houses, hotels, position) VALUES
 (1, 1, 1500, ARRAY['Mediterranean Avenue'], 0, 0, 0),
 (1, 2, 1200, ARRAY['Baltic Avenue','Oriental Avenue'], 1, 0, 5),
-(1, 3, 2350, ARRAY[]::text[], 0, 0, 10)
-ON CONFLICT DO NOTHING;
+(1, 3, 2350, ARRAY[]::text[], 0, 0, 10);
 
 
 -- Exercise 8.1: Single-Table Queries
