@@ -47,6 +47,10 @@ import type { Request, Response, NextFunction } from 'express';
 import type { Player, PlayerInput } from './player.js';
 import type { Game, GameInput } from './game.js';
 
+interface GameDetails extends Game {
+    players: Array<{ id: number; name: string; score: number | null }>;
+}
+
 // Set up the database
 const db = pgPromise()({
     host: process.env.DB_SERVER,
@@ -69,8 +73,7 @@ router.put('/players/:id', updatePlayer);
 router.post('/players', createPlayer);
 router.delete('/players/:id', deletePlayer);
 router.get('/games', readGames);
-router.get('/games/:id', readGame);
-router.get('/games/:id/players', readGamePlayers);
+router.get('/games/:id', readGameDetails);
 router.post('/games', createGame);
 router.put('/games/:id', updateGame);
 router.delete('/games/:id', deleteGame);
@@ -237,23 +240,31 @@ function readGames(_req: Request, res: Response, next: NextFunction): void {
         .catch((err: Error) => next(err));
 }
 
-// GET /games/:id - retrieve a single game
-function readGame(req: Request, res: Response, next: NextFunction): void {
-    db.oneOrNone('SELECT * FROM Game WHERE id=${id}', req.params)
-        .then((data: Game | null): void => returnDataOr404(res, data))
-        .catch((err: Error) => next(err));
-}
-
-// GET /games/:id - list players & scores for a game
-function readGamePlayers(req: Request, res: Response, next: NextFunction): void {
+// GET /games/:id - return players (name + score) for a game
+function readGameDetails(req: Request, res: Response, next: NextFunction): void {
     const gameId = req.params.id;
-    db.manyOrNone(
-        `SELECT P.name, PG.score
-         FROM PlayerGame PG
-         JOIN Player P ON PG.playerID = P.ID
-         WHERE PG.gameID = $1`, [gameId])
-        .then((data): void => {
-            res.send(data);
+
+    db.task((t) => {
+        return t.oneOrNone('SELECT id, time FROM Game WHERE id=$1', [gameId])
+            .then((game: Game | null) => {
+                if (!game) {
+                    return null;
+                }
+                return t.manyOrNone(
+                    `SELECT P.id, P.name, PG.score
+                     FROM PlayerGame PG
+                     JOIN Player P ON PG.playerID = P.ID
+                     WHERE PG.gameID = $1
+                     ORDER BY PG.score DESC`,
+                    [gameId]
+                ).then((players) => ({
+                    ...game,
+                    players
+                }) as GameDetails);
+            });
+    })
+        .then((data: GameDetails | null): void => {
+            returnDataOr404(res, data);
         })
         .catch((err: Error) => next(err));
 }
