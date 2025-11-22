@@ -23,8 +23,11 @@ Based on the root URL, the service implements the following endpoints:
 
 ### Game Endpoints (Homework 3)
 
-- `/games` — Retrieves the full list of games  
-- `/games/:id` — Retrieves the list of players and their scores for the specified game (e.g., `/games/2`)  
+- `/games` — Retrieves the full list of games (e.g., `[{"id":1,"time":"2006-06-27T08:00:00.000Z"}]`)  
+- `/games/:id` — Retrieves a single game by ID  
+- `/games/:id/players` — Retrieves the players and scores for the specified game  
+- `/games` (POST) — Creates a new game; if `time` is omitted the current timestamp is used  
+- `/games/:id` (PUT) — Updates the timestamp for an existing game  
 - `/games/:id` (DELETE) — Deletes the specified game and all associated PlayerGame records  
 
 ### Error Handling

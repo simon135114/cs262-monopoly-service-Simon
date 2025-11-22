@@ -2,7 +2,7 @@
  * This module implements a REST-inspired web service for the Monopoly DB hosted
  * on PostgreSQL for Azure. Notes:
  *
- * - Currently, this service supports the Player table only.
+ * - This service exposes both Player and Game resources.
  *
  * - This service is written in TypeScript and uses Node type-stripping, which
  * is experimental, but simple (see: https://nodejs.org/en/learn/typescript/run-natively).
@@ -45,6 +45,7 @@ import pgPromise from 'pg-promise';
 // Import types for compile-time checking.
 import type { Request, Response, NextFunction } from 'express';
 import type { Player, PlayerInput } from './player.js';
+import type { Game, GameInput } from './game.js';
 
 // Set up the database
 const db = pgPromise()({
@@ -68,7 +69,10 @@ router.put('/players/:id', updatePlayer);
 router.post('/players', createPlayer);
 router.delete('/players/:id', deletePlayer);
 router.get('/games', readGames);
-router.get('/games/:id', readGamePlayers);
+router.get('/games/:id', readGame);
+router.get('/games/:id/players', readGamePlayers);
+router.post('/games', createGame);
+router.put('/games/:id', updateGame);
 router.delete('/games/:id', deleteGame);
 
 
@@ -227,7 +231,16 @@ function deletePlayer(request: Request, response: Response, next: NextFunction):
 // GET /games - list all games
 function readGames(_req: Request, res: Response, next: NextFunction): void {
     db.manyOrNone('SELECT * FROM Game ORDER BY time DESC')
-        .then((data) => res.send(data))
+        .then((data: Game[]): void => {
+            res.send(data);
+        })
+        .catch((err: Error) => next(err));
+}
+
+// GET /games/:id - retrieve a single game
+function readGame(req: Request, res: Response, next: NextFunction): void {
+    db.oneOrNone('SELECT * FROM Game WHERE id=${id}', req.params)
+        .then((data: Game | null): void => returnDataOr404(res, data))
         .catch((err: Error) => next(err));
 }
 
@@ -239,8 +252,46 @@ function readGamePlayers(req: Request, res: Response, next: NextFunction): void 
          FROM PlayerGame PG
          JOIN Player P ON PG.playerID = P.ID
          WHERE PG.gameID = $1`, [gameId])
-        .then((data) => returnDataOr404(res, data))
+        .then((data): void => {
+            res.send(data);
+        })
         .catch((err: Error) => next(err));
+}
+
+// POST /games - create a game
+function createGame(request: Request, response: Response, next: NextFunction): void {
+    const body = request.body as GameInput | undefined;
+    const payload: GameInput = {
+        id: body?.id,
+        time: body?.time ?? new Date().toISOString()
+    };
+
+    const query = payload.id == null
+        ? 'INSERT INTO Game(time) VALUES(${time}) RETURNING *'
+        : 'INSERT INTO Game(id, time) VALUES(${id}, ${time}) RETURNING *';
+
+    db.one(query, payload)
+        .then((data: Game): void => {
+            response.status(201).send(data);
+        })
+        .catch((error: Error): void => next(error));
+}
+
+// PUT /games/:id - update a game's time
+function updateGame(request: Request, response: Response, next: NextFunction): void {
+    const body = request.body as GameInput | undefined;
+
+    if (!body || body.time == null) {
+        response.status(400).json({ error: 'Request body must include a "time" field.' });
+        return;
+    }
+
+    db.oneOrNone('UPDATE Game SET time=${time} WHERE id=${params.id} RETURNING *', {
+        params: request.params,
+        time: body.time
+    })
+        .then((data: Game | null): void => returnDataOr404(response, data))
+        .catch((error: Error): void => next(error));
 }
 
 // DELETE /games/:id - delete a game
